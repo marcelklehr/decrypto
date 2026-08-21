@@ -1,32 +1,12 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-
     <link rel="stylesheet" href="decrypto.css">
-
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
-
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-      crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js" integrity="sha256-obZACiHd7gkOk9iIL/pimWMTJ4W/pBsKu+oZnSeBIek=" crossorigin="anonymous"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.6.0/NoSleep.min.js" integrity="sha256-8gSB9ESo2/0hMlNuROxLSbZhQI6Enq/cMOPhiQO17bc=" crossorigin="anonymous"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/screenfull@4.0.0/dist/screenfull.min.js"></script>
 
     <script src="decrypto.js"></script>
 
@@ -40,7 +20,7 @@
             <p><h3>Decrypto</h3></p>
           </div>
           <div class="col-4">
-            <button type="button" class="btn-lg btn-primary align-baseline float-right my-3" data-toggle="modal" data-target="#newGameModal">
+            <button type="button" class="btn btn-lg btn-primary align-baseline float-right my-3" id="newGameButton" onclick="openModal('newGameModal')">
               New Game
             </button>
           </div>
@@ -111,12 +91,12 @@
           <div class="col-6">
             <div class="float-left">
             <div class="dropdown">              
-              <button class="btn btn-primary btn-lg dropdown-toggle my-3" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <button class="btn btn-primary btn-lg dropdown-toggle my-3" type="button" id="dropdownMenuButton" onclick="toggleDropdown(event)" aria-haspopup="true" aria-expanded="false">
                 Code
               </button>
               <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#codeModal" id="revealCodeButton" style:"display:none">Reveal code</a>
-                <a class="dropdown-item" href="#" onclick="generateCode()">Generate new code</a>
+                <a class="dropdown-item" href="#" onclick="openModal('codeModal'); return false;" id="revealCodeButton" style="display:none">Reveal code</a>
+                <a class="dropdown-item" href="#" onclick="generateCode(); return false;">Generate new code</a>
               </div>
             </div>
           </div>
@@ -124,8 +104,8 @@
           <div class="col-6">
             <div class="float-right">
               <button class="btn btn-primary btn-lg my-3" type="button" id="fullScreenButton" onclick="toggleFullScreen()">
-                <i class="fas fa-expand-arrows-alt" id="enableFullScreen"></i>
-                <i class="fas fa-compress" style="display:none" id="disableFullScreen"></i>
+                <svg class="icon" id="enableFullScreen" viewBox="0 0 448 512" aria-hidden="true"><path d="M32 32C14.3 32 0 46.3 0 64v96c0 17.7 14.3 32 32 32s32-14.3 32-32V96h64c17.7 0 32-14.3 32-32s-14.3-32-32-32H32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32v96c0 17.7 14.3 32 32 32h96c17.7 0 32-14.3 32-32s-14.3-32-32-32H64V352zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32h64v64c0 17.7 14.3 32 32 32s32-14.3 32-32V64c0-17.7-14.3-32-32-32H320zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32v64H320c-17.7 0-32 14.3-32 32s14.3 32 32 32h96c17.7 0 32-14.3 32-32V352z"/></svg>
+                <svg class="icon" id="disableFullScreen" viewBox="0 0 448 512" aria-hidden="true" style="display:none"><path d="M160 64c0-17.7-14.3-32-32-32S96 46.3 96 64l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 320c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0z"/></svg>
               </button>
             </div>
           </div>
@@ -134,52 +114,50 @@
       </div>
 
 <!-- Modal -->
-<div class="modal fade" id="newGameModal" tabindex="-1" role="dialog" aria-labelledby="newGameModalLabel" aria-hidden="true">
+      <div class="modal" id="newGameModal" tabindex="-1" role="dialog" aria-labelledby="newGameModalLabel" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="newGameModalLabel">New Game</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-        </button>
+        <button type="button" class="close" onclick="closeModal('newGameModal')" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         Do you want to start a new game?
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="newGameModalCancelButton">Cancel</button>
-        <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="startNewGame()">Start New Game</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('newGameModal')" id="newGameModalCancelButton">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="closeModal('newGameModal'); startNewGame()">Start New Game</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Modal -->
-<div class="modal fade" id="disableScreenLockModal" tabindex="-1" role="dialog" aria-labelledby="disableScreenLockModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+      <div class="modal" id="disableScreenLockModal" tabindex="-1" role="dialog" aria-labelledby="disableScreenLockModalLabel" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="disableScreenLockModalLabel">Disable Screen Lock?</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-        </button>
+        <button type="button" class="close" onclick="closeModal('disableScreenLockModal')" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         Do you want to keep the screen on while the game is in progress?
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="newGameModalCancelButton">No</button>
-        <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="disableScreenLock()">Yes (recommended)</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('disableScreenLockModal')">No</button>
+        <button type="button" class="btn btn-primary" onclick="closeModal('disableScreenLockModal'); disableScreenLock()">Yes (recommended)</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Modal -->
-<div class="modal fade" id="codeModal" tabindex="-1" role="dialog" aria-labelledby="codeModalCenterTitle" aria-hidden="true">
+      <div class="modal" id="codeModal" tabindex="-1" role="dialog" aria-labelledby="codeModalCenterTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="codeModalLongTitle">Code</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" onclick="closeModal('codeModal')" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -214,15 +192,13 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('codeModal')">Close</button>
       </div>
     </div>
   </div>
 </div>
     <script>
-      $(document).ready(function() {
-        initialize();
-      });
+      document.addEventListener('DOMContentLoaded', initialize);
     </script>
   </body>
 </html>
