@@ -97,6 +97,11 @@ body {
 	border-color: #0062cc;
 }
 
+.btn:disabled {
+	opacity: 0.65;
+	cursor: not-allowed;
+}
+
 .btn-secondary {
 	color: #fff;
 	background-color: #6c757d;

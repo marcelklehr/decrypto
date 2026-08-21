@@ -1,5 +1,6 @@
 var wordList;
 var wakeLock = null;
+var wakeLockDesired = false;
 
 function sampleWithoutReplacement(array, n) {
 	var arr = array.slice();
@@ -44,15 +45,26 @@ function removeCookie(name) {
 	document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
 }
 
-function loadWordList(callback) {
+function setGameControlsEnabled(enabled) {
+	var newGameButton = document.getElementById('newGameButton');
+	var codeButton = document.getElementById('dropdownMenuButton');
+	if (newGameButton) newGameButton.disabled = !enabled;
+	if (codeButton) codeButton.disabled = !enabled;
+}
+
+function loadWordList(callback, errorCallback) {
 	var xhr = new XMLHttpRequest();
 	xhr.open('GET', 'wordlist.txt', true);
 	xhr.onreadystatechange = function() {
-		if (xhr.readyState === 4 && xhr.status === 200) {
-			wordList = xhr.responseText.split('\n').filter(function(line) {
-				return line.trim() !== '';
-			});
-			callback();
+		if (xhr.readyState === 4) {
+			if (xhr.status === 200) {
+				wordList = xhr.responseText.split('\n').filter(function(line) {
+					return line.trim() !== '';
+				});
+				callback();
+			} else {
+				errorCallback();
+			}
 		}
 	};
 	xhr.send();
@@ -128,17 +140,27 @@ function startNewGame() {
 	setWords(newGame());
 }
 
-async function disableScreenLock() {
-	if ('wakeLock' in navigator) {
-		try {
-			wakeLock = await navigator.wakeLock.request('screen');
-		} catch (err) {
-			// Wake lock not granted, ignore
-		}
+async function requestWakeLock() {
+	if (!wakeLockDesired || wakeLock || !('wakeLock' in navigator)) {
+		return;
+	}
+	try {
+		wakeLock = await navigator.wakeLock.request('screen');
+		wakeLock.addEventListener('release', function() {
+			wakeLock = null;
+		});
+	} catch (err) {
+		// Wake lock not granted, ignore
 	}
 }
 
+function disableScreenLock() {
+	wakeLockDesired = true;
+	requestWakeLock();
+}
+
 async function releaseWakeLock() {
+	wakeLockDesired = false;
 	if (wakeLock) {
 		try {
 			await wakeLock.release();
@@ -153,11 +175,17 @@ function initFullscreen() {
 	if (document.fullscreenEnabled) {
 		document.addEventListener('fullscreenchange', function() {
 			if (document.fullscreenElement) {
-				disableScreenLock();
+				wakeLockDesired = true;
+				requestWakeLock();
 			} else {
 				releaseWakeLock();
 			}
 			setFullScreenIcon();
+		});
+		document.addEventListener('visibilitychange', function() {
+			if (document.visibilityState === 'visible' && wakeLockDesired && !wakeLock) {
+				requestWakeLock();
+			}
 		});
 		setInterval(setFullScreenIcon, 200);
 	} else {
@@ -168,7 +196,9 @@ function initFullscreen() {
 
 function initialize() {
 	initFullscreen();
+	setGameControlsEnabled(false);
 	loadWordList(function() {
+		setGameControlsEnabled(true);
 		loadCode();
 		var words = loadWords();
 		if (words) {
@@ -176,35 +206,97 @@ function initialize() {
 		} else {
 			openModal('newGameModal');
 		}
+	}, function() {
+		alert('Failed to load the word list. Please reload the page.');
 	});
 }
 
 // Modal helpers
 function openModal(id) {
 	var modal = document.getElementById(id);
+	if (document.querySelectorAll('.modal.show').length === 0) {
+		var backdrop = document.createElement('div');
+		backdrop.className = 'modal-backdrop';
+		backdrop.id = 'modalBackdrop';
+		document.body.appendChild(backdrop);
+	}
+	modal.dataset.trigger = document.activeElement && document.activeElement.id ? document.activeElement.id : '';
 	modal.classList.add('show');
 	modal.style.display = 'block';
+	modal.setAttribute('aria-hidden', 'false');
 	document.body.classList.add('modal-open');
+	var focusTarget = modal.querySelector('[autofocus]') ||
+		modal.querySelector('.modal-footer .btn-primary') ||
+		modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ||
+		modal;
+	focusTarget.focus();
 }
 
 function closeModal(id) {
 	var modal = document.getElementById(id);
 	modal.classList.remove('show');
 	modal.style.display = 'none';
-	document.body.classList.remove('modal-open');
+	modal.setAttribute('aria-hidden', 'true');
+	if (document.querySelectorAll('.modal.show').length === 0) {
+		var backdrop = document.getElementById('modalBackdrop');
+		if (backdrop) backdrop.parentNode.removeChild(backdrop);
+		document.body.classList.remove('modal-open');
+	}
+	var trigger = modal.dataset.trigger ? document.getElementById(modal.dataset.trigger) : null;
+	if (trigger) trigger.focus();
 }
 
+document.addEventListener('keydown', function(event) {
+	var modal = document.querySelector('.modal.show');
+	if (!modal) return;
+	if (event.key === 'Escape') {
+		closeModal(modal.id);
+		return;
+	}
+	if (event.key !== 'Tab') return;
+	var focusable = Array.prototype.slice.call(
+		modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+	).filter(function(el) {
+		if (el.disabled) return false;
+		if (el.style.display === 'none' || el.style.visibility === 'hidden') return false;
+		if (typeof el.getClientRects === 'function') {
+			var rects = el.getClientRects();
+			if (rects && rects.length > 0) return true;
+			return el.offsetWidth > 0 || el.offsetHeight > 0;
+		}
+		return true;
+	});
+	if (focusable.length === 0) return;
+	var first = focusable[0];
+	var last = focusable[focusable.length - 1];
+	if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) {
+		event.preventDefault();
+		last.focus();
+	} else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+		event.preventDefault();
+		first.focus();
+	}
+});
+
 // Dropdown helper
+function setDropdownExpanded(button, expanded) {
+	var menu = button.parentNode.querySelector('.dropdown-menu');
+	if (menu) menu.classList.toggle('show', expanded);
+	button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+}
+
 function toggleDropdown(event) {
 	event.preventDefault();
-	var menu = document.querySelector('.dropdown-menu');
-	menu.classList.toggle('show');
+	var button = event.currentTarget;
+	setDropdownExpanded(button, button.getAttribute('aria-expanded') !== 'true');
 }
 
 document.addEventListener('click', function(event) {
-	var dropdown = document.querySelector('.dropdown');
-	if (dropdown && !dropdown.contains(event.target)) {
-		var menu = document.querySelector('.dropdown-menu');
-		if (menu) menu.classList.remove('show');
-	}
+	document.querySelectorAll('.dropdown').forEach(function(dropdown) {
+		var button = dropdown.querySelector('.dropdown-toggle');
+		var itemClicked = event.target.closest && event.target.closest('.dropdown-item');
+		if (button && (!dropdown.contains(event.target) || itemClicked)) {
+			setDropdownExpanded(button, false);
+		}
+	});
 });
