@@ -52,9 +52,13 @@ function setGameControlsEnabled(enabled) {
 	if (codeButton) codeButton.disabled = !enabled;
 }
 
-function loadWordList(callback, errorCallback) {
+function getWordListUrl(language) {
+	return language === 'de' ? 'wordlist-de.txt' : 'wordlist.txt';
+}
+
+function loadWordList(language, callback, errorCallback) {
 	var xhr = new XMLHttpRequest();
-	xhr.open('GET', 'wordlist.txt', true);
+	xhr.open('GET', getWordListUrl(language), true);
 	xhr.onreadystatechange = function() {
 		if (xhr.readyState === 4) {
 			if (xhr.status === 200) {
@@ -110,8 +114,6 @@ function loadCode() {
 function newGame() {
 	var words = pickWords(4);
 	setCookie('words', words);
-	removeCookie('code');
-	document.getElementById('revealCodeButton').style.display = 'none';
 	return words;
 }
 
@@ -137,7 +139,19 @@ function setFullScreenIcon() {
 }
 
 function startNewGame() {
-	setWords(newGame());
+	var languageSelect = document.getElementById('newGameLanguage');
+	var language = languageSelect ? languageSelect.value : 'en';
+	setCookie('language', language);
+	removeCookie('code');
+	document.getElementById('revealCodeButton').style.display = 'none';
+	setGameControlsEnabled(false);
+	loadWordList(language, function() {
+		setGameControlsEnabled(true);
+		setWords(newGame());
+	}, function() {
+		setGameControlsEnabled(true);
+		alert('Failed to load the word list. Please reload the page.');
+	});
 }
 
 async function requestWakeLock() {
@@ -197,7 +211,10 @@ function initFullscreen() {
 function initialize() {
 	initFullscreen();
 	setGameControlsEnabled(false);
-	loadWordList(function() {
+	var language = getCookie('language') || 'en';
+	var languageSelect = document.getElementById('newGameLanguage');
+	if (languageSelect) languageSelect.value = language;
+	loadWordList(language, function() {
 		setGameControlsEnabled(true);
 		loadCode();
 		var words = loadWords();
