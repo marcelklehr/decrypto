@@ -1,130 +1,210 @@
 var wordList;
+var wakeLock = null;
 
-function loadWordList() {
-	var wordList;
+function sampleWithoutReplacement(array, n) {
+	var arr = array.slice();
+	var result = [];
+	for (var i = 0; i < n && arr.length > 0; i++) {
+		var idx = Math.floor(Math.random() * arr.length);
+		result.push(arr.splice(idx, 1)[0]);
+	}
+	return result;
+}
 
-	$.ajax({
-            url : "wordlist.txt",
-            dataType: "text",
-            success : function (data) {
-            	wordList = data.split("\n");
-            },
-            async: false
-        });
-	return wordList;
+function sample(array, n) {
+	var result = [];
+	for (var i = 0; i < n; i++) {
+		result.push(array[Math.floor(Math.random() * array.length)]);
+	}
+	return result;
+}
+
+function setCookie(name, value, days) {
+	days = days || 365;
+	var expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
+	document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + '; expires=' + expires + '; path=/';
+}
+
+function getCookie(name) {
+	var cookies = document.cookie.split(';');
+	for (var i = 0; i < cookies.length; i++) {
+		var cookie = cookies[i].trim();
+		if (cookie.indexOf(name + '=') === 0) {
+			try {
+				return JSON.parse(decodeURIComponent(cookie.substring(name.length + 1)));
+			} catch (e) {
+				return null;
+			}
+		}
+	}
+	return null;
+}
+
+function removeCookie(name) {
+	document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+}
+
+function loadWordList(callback) {
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', 'wordlist.txt', true);
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState === 4 && xhr.status === 200) {
+			wordList = xhr.responseText.split('\n').filter(function(line) {
+				return line.trim() !== '';
+			});
+			callback();
+		}
+	};
+	xhr.send();
 }
 
 function pickWords(numWords) {
-	return _.sample(wordList, numWords);
+	return sampleWithoutReplacement(wordList, numWords);
 }
 
 function generateCode() {
-	var code = _.sample([1,2,3,4], 3);
-	Cookies.set("code", code);
+	var code = sampleWithoutReplacement([1, 2, 3, 4], 3);
+	setCookie('code', code);
 	setCode(code);
-	$('#codeModal').modal('show');
+	openModal('codeModal');
 }
 
 function setCode(code) {
-	for(idx = 0; idx < 3; idx++) {
-		$('#code' + idx).text(code[idx]);
+	for (var idx = 0; idx < 3; idx++) {
+		document.getElementById('code' + idx).textContent = code[idx];
 	}
-	$('#revealCodeButton').show();
+	document.getElementById('revealCodeButton').style.display = 'block';
 }
 
 function setWords(words) {
-	for(idx = 0; idx < 4; idx++) {
-		$('#word' + idx).text(words[idx]);
+	for (var idx = 0; idx < 4; idx++) {
+		document.getElementById('word' + idx).textContent = words[idx];
 	}
 }
 
 function loadWords() {
-	return Cookies.getJSON("words");
+	return getCookie('words');
 }
 
 function loadCode() {
-	var code = Cookies.getJSON("code");
+	var code = getCookie('code');
 	if (code) {
 		setCode(code);
 	} else {
-		$('#revealCodeButton').hide();
+		document.getElementById('revealCodeButton').style.display = 'none';
 	}
 }
 
 function newGame() {
 	var words = pickWords(4);
-	Cookies.set("words", words);
-	Cookies.remove("code");
-	$('#revealCodeButton').hide();
+	setCookie('words', words);
+	removeCookie('code');
+	document.getElementById('revealCodeButton').style.display = 'none';
 	return words;
 }
 
 function toggleFullScreen() {
-	if (screenfull.isFullscreen) {
-		screenfull.exit();
+	if (document.fullscreenElement) {
+		document.exitFullscreen().catch(function() {});
 	} else {
-		screenfull.request();
+		document.documentElement.requestFullscreen().catch(function() {});
 	}
 	setFullScreenIcon();
 }
 
 function setFullScreenIcon() {
-    if (screenfull.isFullscreen) {
-		$('#enableFullScreen').hide();
-		$('#disableFullScreen').show();
-    } else {
-		$('#enableFullScreen').show();
-		$('#disableFullScreen').hide();
-    }
+	var enableIcon = document.getElementById('enableFullScreen');
+	var disableIcon = document.getElementById('disableFullScreen');
+	if (document.fullscreenElement) {
+		enableIcon.style.display = 'none';
+		disableIcon.style.display = 'inline';
+	} else {
+		enableIcon.style.display = 'inline';
+		disableIcon.style.display = 'none';
+	}
 }
 
 function startNewGame() {
 	setWords(newGame());
 }
 
-function disableScreenLock() {
-	var noSleep = new NoSleep();
-	noSleep.enable();
+async function disableScreenLock() {
+	if ('wakeLock' in navigator) {
+		try {
+			wakeLock = await navigator.wakeLock.request('screen');
+		} catch (err) {
+			// Wake lock not granted, ignore
+		}
+	}
 }
 
-function initScreenfull() {
-	var noSleep = new NoSleep();
+async function releaseWakeLock() {
+	if (wakeLock) {
+		try {
+			await wakeLock.release();
+		} catch (err) {
+			// ignore
+		}
+		wakeLock = null;
+	}
+}
 
-	if (screenfull.enabled) {
-		screenfull.on('change', () => {
-			if (screenfull.isFullscreen) {
-				noSleep.enable();
+function initFullscreen() {
+	if (document.fullscreenEnabled) {
+		document.addEventListener('fullscreenchange', function() {
+			if (document.fullscreenElement) {
+				disableScreenLock();
 			} else {
-				noSleep.disable();
+				releaseWakeLock();
 			}
+			setFullScreenIcon();
 		});
-        setInterval(setFullScreenIcon, 200);
-    } else {
-        $('#fullScreenButton').hide();
-        $('#disableScreenLockModal').modal('show');
-    }
+		setInterval(setFullScreenIcon, 200);
+	} else {
+		document.getElementById('fullScreenButton').style.display = 'none';
+		openModal('disableScreenLockModal');
+	}
 }
 
 function initialize() {
-	initScreenfull();
-
-	wordList = loadWordList();
-	loadCode();
-
-	var words = loadWords();
-
-	if (words) {
-		setWords(words);
-	} else {
-		/*
-		startNewGame();
-		$('#newGameModalCancelButton').hide();
-		$('#newGameModal').modal({
-			show: true,
-			keyboard: false,
-			backdrop: 'static'
-		});
-		*/
-		$('#newGameModal').modal('show');
-	}
+	initFullscreen();
+	loadWordList(function() {
+		loadCode();
+		var words = loadWords();
+		if (words) {
+			setWords(words);
+		} else {
+			openModal('newGameModal');
+		}
+	});
 }
+
+// Modal helpers
+function openModal(id) {
+	var modal = document.getElementById(id);
+	modal.classList.add('show');
+	modal.style.display = 'block';
+	document.body.classList.add('modal-open');
+}
+
+function closeModal(id) {
+	var modal = document.getElementById(id);
+	modal.classList.remove('show');
+	modal.style.display = 'none';
+	document.body.classList.remove('modal-open');
+}
+
+// Dropdown helper
+function toggleDropdown(event) {
+	event.preventDefault();
+	var menu = document.querySelector('.dropdown-menu');
+	menu.classList.toggle('show');
+}
+
+document.addEventListener('click', function(event) {
+	var dropdown = document.querySelector('.dropdown');
+	if (dropdown && !dropdown.contains(event.target)) {
+		var menu = document.querySelector('.dropdown-menu');
+		if (menu) menu.classList.remove('show');
+	}
+});
